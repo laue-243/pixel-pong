@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pixel Pong</title>
+<style>
+body { background: #000; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; image-rendering: pixelated; }
+canvas { border: 4px solid #333; image-rendering: pixelated; }
+</style>
+</head>
+<body>
+<canvas id="game" width="600" height="400"></canvas>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+
+const paddleW = 10, paddleH = 80;
+let leftY = 160, rightY = 160;
+let ballX = 300, ballY = 200, ballVX = 4, ballVY = 2;
+let leftScore = 0, rightScore = 0;
+
+function drawPixelRect(x, y, w, h, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, w, h);
+}
+
+function loop() {
+  ballX += ballVX; ballY += ballVY;
+  if (ballY < 0 || ballY > 390) ballVY *= -1;
+  if (ballX < 20 && ballY > leftY && ballY < leftY + paddleH) ballVX *= -1;
+  if (ballX > 570 && ballY > rightY && ballY < rightY + paddleH) ballVX *= -1;
+  if (ballX < 0) { rightScore++; reset(); }
+  if (ballX > 600) { leftScore++; reset(); }
+
+  // Simple AI
+  if (rightY + 40 < ballY) rightY += 3;
+  if (rightY + 40 > ballY) rightY -= 3;
+  rightY = Math.max(0, Math.min(320, rightY));
+
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0,0,600,400);
+  drawPixelRect(10, leftY, paddleW, paddleH, '#0f0');
+  drawPixelRect(580, rightY, paddleW, paddleH, '#f00');
+  drawPixelRect(ballX, ballY, 8, 8, '#fff');
+  ctx.fillStyle = '#fff';
+  ctx.font = '20px monospace';
+  ctx.fillText(leftScore, 250, 30);
+  ctx.fillText(rightScore, 330, 30);
+  requestAnimationFrame(loop);
+}
+
+function reset() {
+  ballX = 300; ballY = 200;
+  ballVX = (Math.random() > 0.5 ? 4 : -4);
+  ballVY = (Math.random() - 0.5) * 4;
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowUp') leftY = Math.max(0, leftY - 20);
+  if (e.key === 'ArrowDown') leftY = Math.min(320, leftY + 20);
+});
+
+loop();
+</script>
+</body>
+</html>
