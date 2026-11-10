@@ -2,63 +2,140 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Pixel Pong</title>
+<title>Pixel Pong — Improved</title>
 <style>
 body { background: #000; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; image-rendering: pixelated; }
-canvas { border: 4px solid #333; image-rendering: pixelated; }
+canvas { border: 6px solid #333; image-rendering: pixelated; box-shadow: 0 0 40px #0f08; }
 </style>
 </head>
 <body>
-<canvas id="game" width="600" height="400"></canvas>
+<canvas id="game" width="700" height="450"></canvas>
 <script>
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 ctx.imageSmoothingEnabled = false;
 
-const paddleW = 10, paddleH = 80;
-let leftY = 160, rightY = 160;
-let ballX = 300, ballY = 200, ballVX = 4, ballVY = 2;
+const PW = 12, PH = 90;
+let leftY = 180, rightY = 180;
+let ball = {x:350, y:225, vx:5, vy:3, trail:[]};
 let leftScore = 0, rightScore = 0;
+let state = 'start';
+const WIN = 5;
 
-function drawPixelRect(x, y, w, h, color) {
-  ctx.fillStyle = color;
-  ctx.fillRect(x, y, w, h);
+function resetBall() {
+  ball.x = 350; ball.y = 225;
+  ball.vx = (Math.random()>0.5?1:-1) * (5 + Math.random()*2);
+  ball.vy = (Math.random()-0.5)*6;
+  ball.trail = [];
+}
+
+function draw() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0,0,700,450);
+  // Center line
+  ctx.strokeStyle = '#333';
+  ctx.setLineDash([10,10]);
+  ctx.beginPath(); ctx.moveTo(350,0); ctx.lineTo(350,450); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Trail
+  ball.trail.forEach((t,i) => {
+    ctx.globalAlpha = i/ball.trail.length * 0.5;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(t.x-4, t.y-4, 8, 8);
+  });
+  ctx.globalAlpha = 1;
+
+  // Paddles
+  ctx.fillStyle = '#0f0';
+  ctx.fillRect(15, leftY, PW, PH);
+  ctx.fillStyle = '#f44';
+  ctx.fillRect(673, rightY, PW, PH);
+
+  // Ball
+  ctx.shadowColor = '#fff';
+  ctx.shadowBlur = 15;
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(ball.x-6, ball.y-6, 12, 12);
+  ctx.shadowBlur = 0;
+
+  // Scores
+  ctx.fillStyle = '#0f0';
+  ctx.font = 'bold 48px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(leftScore, 200, 70);
+  ctx.fillStyle = '#f44';
+  ctx.fillText(rightScore, 500, 70);
+
+  if (state === 'start') {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0,0,700,450);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 40px monospace';
+    ctx.fillText('PIXEL PONG', 350, 180);
+    ctx.font = '20px monospace';
+    ctx.fillText('Arrow Up/Down to move', 350, 230);
+    ctx.fillText('First to ' + WIN + ' wins', 350, 260);
+    ctx.fillText('SPACE to start', 350, 310);
+  }
+  if (state === 'win') {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0,0,700,450);
+    ctx.fillStyle = leftScore > rightScore ? '#0f0' : '#f44';
+    ctx.font = 'bold 36px monospace';
+    ctx.fillText((leftScore > rightScore ? 'YOU WIN!' : 'AI WINS!'), 350, 200);
+    ctx.fillStyle = '#fff';
+    ctx.font = '20px monospace';
+    ctx.fillText('SPACE to play again', 350, 260);
+  }
+}
+
+function update() {
+  if (state !== 'play') return;
+  ball.x += ball.vx;
+  ball.y += ball.vy;
+  ball.trail.push({x:ball.x, y:ball.y});
+  if (ball.trail.length > 12) ball.trail.shift();
+
+  if (ball.y < 10 || ball.y > 440) ball.vy *= -1;
+
+  // Paddle collisions
+  if (ball.x < 30 && ball.y > leftY && ball.y < leftY + PH) {
+    ball.vx = Math.abs(ball.vx) + 0.3;
+    ball.vy += (ball.y - (leftY + PH/2)) * 0.1;
+  }
+  if (ball.x > 670 && ball.y > rightY && ball.y < rightY + PH) {
+    ball.vx = -Math.abs(ball.vx) - 0.3;
+    ball.vy += (ball.y - (rightY + PH/2)) * 0.1;
+  }
+
+  if (ball.x < 0) { rightScore++; resetBall(); }
+  if (ball.x > 700) { leftScore++; resetBall(); }
+
+  if (leftScore >= WIN || rightScore >= WIN) state = 'win';
+
+  // AI
+  const target = ball.y - PH/2;
+  if (rightY < target - 5) rightY += 4.5;
+  if (rightY > target + 5) rightY -= 4.5;
+  rightY = Math.max(0, Math.min(360, rightY));
 }
 
 function loop() {
-  ballX += ballVX; ballY += ballVY;
-  if (ballY < 0 || ballY > 390) ballVY *= -1;
-  if (ballX < 20 && ballY > leftY && ballY < leftY + paddleH) ballVX *= -1;
-  if (ballX > 570 && ballY > rightY && ballY < rightY + paddleH) ballVX *= -1;
-  if (ballX < 0) { rightScore++; reset(); }
-  if (ballX > 600) { leftScore++; reset(); }
-
-  // Simple AI
-  if (rightY + 40 < ballY) rightY += 3;
-  if (rightY + 40 > ballY) rightY -= 3;
-  rightY = Math.max(0, Math.min(320, rightY));
-
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0,0,600,400);
-  drawPixelRect(10, leftY, paddleW, paddleH, '#0f0');
-  drawPixelRect(580, rightY, paddleW, paddleH, '#f00');
-  drawPixelRect(ballX, ballY, 8, 8, '#fff');
-  ctx.fillStyle = '#fff';
-  ctx.font = '20px monospace';
-  ctx.fillText(leftScore, 250, 30);
-  ctx.fillText(rightScore, 330, 30);
+  update();
+  draw();
   requestAnimationFrame(loop);
 }
 
-function reset() {
-  ballX = 300; ballY = 200;
-  ballVX = (Math.random() > 0.5 ? 4 : -4);
-  ballVY = (Math.random() - 0.5) * 4;
-}
-
 document.addEventListener('keydown', e => {
-  if (e.key === 'ArrowUp') leftY = Math.max(0, leftY - 20);
-  if (e.key === 'ArrowDown') leftY = Math.min(320, leftY + 20);
+  if ((state === 'start' || state === 'win') && e.code === 'Space') {
+    leftScore = rightScore = 0;
+    resetBall();
+    state = 'play';
+    return;
+  }
+  if (e.key === 'ArrowUp') leftY = Math.max(0, leftY - 25);
+  if (e.key === 'ArrowDown') leftY = Math.min(360, leftY + 25);
 });
 
 loop();
